@@ -85,6 +85,7 @@ class Speedrun {
   }
 }
 
+// main function - finds and outputs best times
 function get_best_times() {
   let best_times = [];
   let game_values = games_range.getValues();
@@ -134,6 +135,7 @@ function get_best_times() {
   merge_game_groups(output_range_full);
 }
 
+// get all rows as Speedrun objects
 function get_speedruns(game_values) {
   let speedruns = [];
 
@@ -163,6 +165,7 @@ function uniqueColumns(vals, col1, col2, col3, col4, col5){
   return uniqueSorted;
 }
 
+// get unique sets of Game,Category,Version,Variables,Platform
 function get_games_cats(game_values) {
   return uniqueColumns(
     game_values, HEADER.indexOf("Game"), HEADER.indexOf("Category"), 
@@ -170,12 +173,14 @@ function get_games_cats(game_values) {
   );
 }
 
+// find all merged ranges and unmerge them
 function unmerge_all(range) {
   range.getMergedRanges().forEach(function myFunction(r, index, arr) {
     r.breakApart();
   });
 }
 
+// merge all game groups vertically
 function merge_game_groups(range) {
   let game_values = range.getValues();
   let i = HEADER.indexOf("Game");
@@ -202,12 +207,8 @@ function merge_game_groups(range) {
       cur_count = 1;
     }
   });
-
-  // Logger.log(JSON.stringify(game_values));
 }
 
 function onEdit(e) {
-  // Set a comment on the edited cell to indicate when it was changed.
-  // var range = e.range;
-  // range.setNote('Last modified: ' + new Date());
+  // run on edit
 }
