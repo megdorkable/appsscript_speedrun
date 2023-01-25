@@ -71,8 +71,8 @@ class Speedrun {
   // this utilizes the game_date variable to group speedruns by game, placing the game with the most recent best time date ..
   // .. first, then within each group sort by the newest date
   static game_sort(a, b) {
-    if (a.game == b.game && a.category == b.category) {
-      return this.newest(a, b);
+    if (a.game == b.game) {
+      return Speedrun.newest(a, b);
     } else {
       if (a.game_date > b.game_date) {
         return -1;
@@ -95,7 +95,8 @@ function get_best_times() {
   // find the best time for each [game, category] pair and store in best_times
   games_cats.forEach(function myFunction(game_cat, index, arr) {
     let result = speedruns.filter(function myFunction(speedrun) {
-      return speedrun.game === game_cat[0] && speedrun.category === game_cat[1];
+      return speedrun.game === game_cat[0] && speedrun.category === game_cat[1] && speedrun.version === game_cat[2] &&
+             speedrun.variables === game_cat[3] && speedrun.platform === game_cat[4];
     });
 
     result.sort(Speedrun.fastest);
@@ -150,9 +151,9 @@ function get_speedruns(game_values) {
   return speedruns;
 }
 
-// get unique pairs of two columns
-function uniqueColumns(vals, col1, col2){
-  let singleArray = vals.map(row => [row[col1], row[col2]]);
+// get unique sets of columns
+function uniqueColumns(vals, col1, col2, col3, col4, col5){
+  let singleArray = vals.map(row => [row[col1], row[col2], row[col3], row[col4], row[col5]]);
   let unique = [...new Set(singleArray.map(JSON.stringify))].map(JSON.parse);
   let uniqueSorted = unique.filter(n => n).sort();
   uniqueSorted = uniqueSorted.filter(function(n) { 
@@ -163,7 +164,10 @@ function uniqueColumns(vals, col1, col2){
 }
 
 function get_games_cats(game_values) {
-  return uniqueColumns(game_values, HEADER.indexOf("Game"), HEADER.indexOf("Category"));
+  return uniqueColumns(
+    game_values, HEADER.indexOf("Game"), HEADER.indexOf("Category"), 
+    HEADER.indexOf("Version"), HEADER.indexOf("Variables"), HEADER.indexOf("Platform")
+  );
 }
 
 function unmerge_all(range) {
