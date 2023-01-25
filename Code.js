@@ -26,6 +26,8 @@ class Speedrun {
     this.video = video;
     this.comments = comments;
     this.notes = notes;
+    // this will store the most recent best time date for the game overall across all categories, used for sorting
+    this.game_date = undefined;
   }
 
   toRow() {
@@ -43,6 +45,7 @@ class Speedrun {
     return row;
   }
 
+  // sort function to sort speedruns by the fastest time
   static fastest(a, b) {
     if (a.time < b.time) {
       return -1;
@@ -53,6 +56,7 @@ class Speedrun {
     return 0;
   }
 
+  // sort function to sort speedruns by the newest date
   static newest(a, b) {
     if (a.date > b.date) {
       return -1;
@@ -62,40 +66,71 @@ class Speedrun {
     }
     return 0;
   }
+
+  // sort function to sort speedruns
+  // this utilizes the game_date variable to group speedruns by game, placing the game with the most recent best time date ..
+  // .. first, then within each group sort by the newest date
+  static game_sort(a, b) {
+    if (a.game == b.game && a.category == b.category) {
+      return this.newest(a, b);
+    } else {
+      if (a.game_date > b.game_date) {
+        return -1;
+      }
+      if (a.game_date < b.game_date) {
+        return 1;
+      }
+      return 0;
+    }
+  }
 }
 
 function get_best_times() {
   let best_times = [];
-  // get values
   let game_values = games_range.getValues();
 
   let speedruns = get_speedruns(game_values);
-  // let games = get_games(game_values);
   let games_cats = get_games_cats(game_values);
 
+  // find the best time for each [game, category] pair and store in best_times
   games_cats.forEach(function myFunction(game_cat, index, arr) {
     let result = speedruns.filter(function myFunction(speedrun) {
       return speedrun.game === game_cat[0] && speedrun.category === game_cat[1];
     });
+
     result.sort(Speedrun.fastest);
     best_times.push(result[0]);
   });
 
-  // best_times.sort(Speedrun.newest);
+  // find the most recent best time for each game across all categories, and set each item's game_date variable to that date
+  // then sort the best times into groups based on the game_date variable
+  let newest = [...best_times].sort(Speedrun.newest);
+  best_times.forEach(function myFunction(item, index, arr) {
+    let i = newest.findIndex(function myFunction(speedrun) {
+      return speedrun.game == item.game
+    });
+    item.game_date = newest[i].date
+  });
+  best_times.sort(Speedrun.game_sort)
+
+  // convert each speedrun object to an array/row to get ready to output
   best_times.forEach(function myFunction(item, index, arr) {
     arr[index] = item.toRow();
   });
 
-  Logger.log(JSON.stringify(best_times));
+  // Logger.log(JSON.stringify(best_times));
 
-  // set up output
+  // set up output range
   let row_start = output_range.getRow();
   let row_depth = best_times.length;
   let col = output_range.getColumn();
   let column_depth = HEADER.length;
 
   // output
-  output_sheet.getRange(row_start, col, row_depth, column_depth).setValues(best_times);
+  let output_range_full = output_sheet.getRange(row_start, col, row_depth, column_depth);
+  unmerge_all(output_range_full);
+  output_range_full.setValues(best_times);
+  merge_game_groups(output_range_full);
 }
 
 function get_speedruns(game_values) {
@@ -103,7 +138,6 @@ function get_speedruns(game_values) {
 
   // create objects
   game_values.forEach(function myFunction(row, index, arr) {
-    // Logger.log(JSON.stringify(row));
     if (row[0] != "") {
       speedruns.push(new Speedrun(
         row[HEADER.indexOf("Game")], row[HEADER.indexOf("Category")], row[HEADER.indexOf("Version")], row[HEADER.indexOf("Variables")],
@@ -113,23 +147,10 @@ function get_speedruns(game_values) {
     }
   })
 
-  // Logger.log(JSON.stringify(speedruns));
-
   return speedruns;
 }
 
-function uniqueColumn(vals, col){
-  let singleArray = vals.map(row => row[col]);
-  let unique = [...new Set(singleArray)];
-  let uniqueSorted = unique.filter(n => n).sort();
-
-  return uniqueSorted.map(row=> [row]);
-}
-
-function get_games(game_values) {
-  return uniqueColumn(game_values, HEADER.indexOf("Game"));
-}
-
+// get unique pairs of two columns
 function uniqueColumns(vals, col1, col2){
   let singleArray = vals.map(row => [row[col1], row[col2]]);
   let unique = [...new Set(singleArray.map(JSON.stringify))].map(JSON.parse);
@@ -143,6 +164,42 @@ function uniqueColumns(vals, col1, col2){
 
 function get_games_cats(game_values) {
   return uniqueColumns(game_values, HEADER.indexOf("Game"), HEADER.indexOf("Category"));
+}
+
+function unmerge_all(range) {
+  range.getMergedRanges().forEach(function myFunction(r, index, arr) {
+    r.breakApart();
+  });
+}
+
+function merge_game_groups(range) {
+  let game_values = range.getValues();
+  let i = HEADER.indexOf("Game");
+  let singleArray = game_values.map(row => row[i]);
+
+  let cur_game = undefined;
+  let cur_count = 1;
+  singleArray.forEach(function myFunction(game, index, arr) {
+    if (cur_game == undefined) {
+      cur_game = game;
+    } else if (game == cur_game) {
+      cur_count += 1;
+    } else {
+      // set up merge range
+      let row_start = range.getRow() + index - cur_count;
+      let row_depth = cur_count;
+      let col = i + 1;
+
+      // merge
+      output_sheet.getRange(row_start, col, row_depth).mergeVertically();
+
+      // set values to next game
+      cur_game = game;
+      cur_count = 1;
+    }
+  });
+
+  // Logger.log(JSON.stringify(game_values));
 }
 
 function onEdit(e) {
