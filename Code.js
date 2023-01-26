@@ -2,10 +2,11 @@
 // data input
 const DATA_SHEET_NAME = "All Completed Runs";
 const DATA_RANGE = "A2:J";
-const HEADER = ["Game", "Category", "Version", "Variables", "Platform", "Time", "Date (Y-M-D)", "Video", "Comments", "Notes"];
+const DATA_HEADER = ["Game", "Category", "Version", "Variables", "Platform", "Time", "Date (Y-M-D)", "Video", "Comments", "Notes"];
 // data output
 const OUTPUT_SHEET_NAME = "Personal Best Times";
 const OUTPUT_RANGE_START = "A2";
+const OUTPUT_HEADER = ["Game", "Category", "Subcategory", "Time", "Date (Y-M-D)", "Video", "Comments", "Notes"]
 
 // variables
 const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -31,18 +32,27 @@ class Speedrun {
   }
 
   toRow() {
-    let row = Array(HEADER.length);
-    row[HEADER.indexOf("Game")] = this.game;
-    row[HEADER.indexOf("Category")] = this.category;
-    row[HEADER.indexOf("Version")] = this.version;
-    row[HEADER.indexOf("Variables")] = this.variables;
-    row[HEADER.indexOf("Platform")] = this.platform;
-    row[HEADER.indexOf("Time")] = this.time;
-    row[HEADER.indexOf("Date (Y-M-D)")] = this.date;
-    row[HEADER.indexOf("Video")] = this.video;
-    row[HEADER.indexOf("Comments")] = this.comments;
-    row[HEADER.indexOf("Notes")] = this.notes;
+    let row = Array(OUTPUT_HEADER.length);
+    row[OUTPUT_HEADER.indexOf("Game")] = this.game;
+    row[OUTPUT_HEADER.indexOf("Category")] = this.category;
+    row[OUTPUT_HEADER.indexOf("Subcategory")] = Speedrun.collapseCells([this.version, this.variables, this.platform]);
+    row[OUTPUT_HEADER.indexOf("Time")] = this.time;
+    row[OUTPUT_HEADER.indexOf("Date (Y-M-D)")] = this.date;
+    row[OUTPUT_HEADER.indexOf("Video")] = this.video;
+    row[OUTPUT_HEADER.indexOf("Comments")] = this.comments;
+    row[OUTPUT_HEADER.indexOf("Notes")] = this.notes;
     return row;
+  }
+
+  static collapseCells(arr) {
+    let result = arr.filter(function myFunction(cell) {
+      return cell != "-";
+    });
+    if (result.length > 0) {
+      return "(" + result.join(', ') + ")";
+    } else {
+      return "";
+    }
   }
 
   // sort function to sort speedruns by the fastest time
@@ -126,7 +136,7 @@ function get_best_times() {
   let row_start = output_range.getRow();
   let row_depth = best_times.length;
   let col = output_range.getColumn();
-  let column_depth = HEADER.length;
+  let column_depth = OUTPUT_HEADER.length;
 
   // output
   let output_range_full = output_sheet.getRange(row_start, col, row_depth, column_depth);
@@ -143,9 +153,9 @@ function get_speedruns(game_values) {
   game_values.forEach(function myFunction(row, index, arr) {
     if (row[0] != "") {
       speedruns.push(new Speedrun(
-        row[HEADER.indexOf("Game")], row[HEADER.indexOf("Category")], row[HEADER.indexOf("Version")], row[HEADER.indexOf("Variables")],
-        row[HEADER.indexOf("Platform")], row[HEADER.indexOf("Time")], row[HEADER.indexOf("Date (Y-M-D)")], 
-        row[HEADER.indexOf("Video")], row[HEADER.indexOf("Comments")], row[HEADER.indexOf("Notes")]
+        row[DATA_HEADER.indexOf("Game")], row[DATA_HEADER.indexOf("Category")], row[DATA_HEADER.indexOf("Version")], row[DATA_HEADER.indexOf("Variables")],
+        row[DATA_HEADER.indexOf("Platform")], row[DATA_HEADER.indexOf("Time")], row[DATA_HEADER.indexOf("Date (Y-M-D)")], 
+        row[DATA_HEADER.indexOf("Video")], row[DATA_HEADER.indexOf("Comments")], row[DATA_HEADER.indexOf("Notes")]
       ));
     }
   })
@@ -168,8 +178,8 @@ function uniqueColumns(vals, col1, col2, col3, col4, col5){
 // get unique sets of Game,Category,Version,Variables,Platform
 function get_games_cats(game_values) {
   return uniqueColumns(
-    game_values, HEADER.indexOf("Game"), HEADER.indexOf("Category"), 
-    HEADER.indexOf("Version"), HEADER.indexOf("Variables"), HEADER.indexOf("Platform")
+    game_values, DATA_HEADER.indexOf("Game"), DATA_HEADER.indexOf("Category"), 
+    DATA_HEADER.indexOf("Version"), DATA_HEADER.indexOf("Variables"), DATA_HEADER.indexOf("Platform")
   );
 }
 
@@ -183,7 +193,7 @@ function unmerge_all(range) {
 // merge all game groups vertically
 function merge_game_groups(range) {
   let game_values = range.getValues();
-  let i = HEADER.indexOf("Game");
+  let i = DATA_HEADER.indexOf("Game");
   let singleArray = game_values.map(row => row[i]);
 
   let cur_game = undefined;
@@ -211,4 +221,9 @@ function merge_game_groups(range) {
 
 function onEdit(e) {
   // run on edit
+  const range = e.range;
+  if (range.getSheet().getName() == DATA_SHEET_NAME) {
+    Utilities.sleep(15*1000);
+    get_best_times();
+  }
 }
